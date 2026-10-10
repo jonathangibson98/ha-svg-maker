@@ -1,0 +1,113 @@
+<!DOCTYPE html><html><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>SVG Maker</title>
+<style>
+:root{--bg:#111;--card:#1c1c1e;--txt:#eee;--mut:#9a9a9f;--acc:#03a9f4}
+@media(prefers-color-scheme:light){:root{--bg:#f2f2f7;--card:#fff;--txt:#111;--mut:#666}}
+*{box-sizing:border-box}
+body{font-family:-apple-system,Roboto,sans-serif;background:var(--bg);color:var(--txt);margin:0;padding:16px}
+.wrap{max-width:720px;margin:auto}
+.hero{text-align:center;padding:12px 0 4px}
+.hero h1{margin:0;font-size:28px}
+.hero p{color:var(--mut);margin:6px 0 0}
+.card{background:var(--card);border-radius:14px;padding:16px;margin-top:14px}
+.steps{display:flex;gap:8px;flex-wrap:wrap;color:var(--mut);font-size:14px}
+.steps span{flex:1;min-width:150px}
+.steps b{color:var(--acc)}
+label{display:block;font-size:14px;color:var(--mut);margin:12px 0 4px}
+input[type=file],input[type=text],select{width:100%;font-size:16px;padding:10px;border-radius:10px;border:1px solid #444;background:transparent;color:var(--txt)}
+input[type=range]{width:100%}
+button{font-size:16px;padding:13px;border:0;border-radius:10px;background:var(--acc);color:#fff;font-weight:600}
+button.main{width:100%;margin-top:14px}
+button.alt{background:#555}
+button:disabled{opacity:.5}
+.row{display:flex;gap:8px;margin-top:12px}
+.row button{flex:1}
+#msg,#rmsg{margin-top:10px;font-size:14px;color:var(--mut);word-break:break-all}
+#prevbox{background:#fff;border-radius:10px;padding:10px;text-align:center}
+#prevbox img{max-width:100%;max-height:50vh}
+.tip{font-size:13px;color:var(--mut);line-height:1.5}
+</style></head><body><div class="wrap">
+<div class="hero"><h1>SVG Maker</h1><p>Turn photos into crisp, scalable vector graphics.</p></div>
+
+<div class="card"><div class="steps"><span><b>1.</b> Pick a photo</span><span><b>2.</b> Choose color and detail</span><span><b>3.</b> Name it, then save or download</span></div></div>
+
+<div class="card">
+  <label>Photo</label>
+  <input type="file" id="file" accept="image/*">
+  <label>Color mode</label>
+  <select id="mode"><option value="color">Color</option><option value="bw">Black &amp; white</option></select>
+  <label>Detail: <b id="dv">5</b> <span style="float:right">simple &larr; &rarr; detailed</span></label>
+  <input type="range" id="detail" min="1" max="10" value="5">
+  <button class="main" id="btn" onclick="go()">Convert to SVG</button>
+  <div id="msg"></div>
+</div>
+
+<div class="card" id="result" hidden>
+  <div id="prevbox"><img id="prev"></div>
+  <label>File name</label>
+  <input type="text" id="fname" placeholder="my_icon" autocapitalize="off" autocorrect="off">
+  <div class="row">
+    <button id="bSave" onclick="act('save')">Save locally</button>
+    <button id="bDl" class="alt" onclick="act('dl')">Download</button>
+    <button id="bBoth" onclick="act('both')">Both</button>
+  </div>
+  <div id="rmsg"></div>
+</div>
+
+<div class="card tip">
+  <b>Best results:</b> logos, drawings, cartoons, signatures and photos with clear shapes and solid colors.
+  Busy, realistic photos turn into a stylized, blobby look. That is normal for vector tracing.
+  <div id="saveinfo" style="margin-top:8px"></div>
+</div>
+</div>
+<script>
+const $=id=>document.getElementById(id);
+let cur=null;
+$('detail').oninput=e=>$('dv').textContent=e.target.value;
+fetch('settings').then(r=>r.json()).then(s=>{
+  $('mode').value=s.default_mode;$('detail').value=s.default_detail;$('dv').textContent=s.default_detail;
+  $('saveinfo').innerHTML='Save locally puts files in <b>'+s.output_path+'</b>. Anything you do not save is auto-kept in <b>'+s.temp_path+'</b>.';
+}).catch(()=>{});
+function cleanName(n){n=n.trim().replace(/\.svg$/i,'').replace(/[^A-Za-z0-9._-]+/g,'_').replace(/^[._]+|[._]+$/g,'');return n||(cur&&cur.name)||'image'}
+async function go(){
+  const f=$('file').files[0];
+  if(!f){$('msg').textContent='Pick a photo first.';return}
+  $('btn').disabled=true;$('msg').textContent='Working... bigger photos take longer on a Pi.';$('result').hidden=true;
+  const fd=new FormData();
+  fd.append('photo',f);fd.append('mode',$('mode').value);fd.append('detail',$('detail').value);
+  try{
+    const r=await fetch('convert',{method:'POST',body:fd});
+    if(!r.ok){$('msg').textContent='Failed: '+await r.text();return}
+    cur=await r.json();
+    $('prev').src=URL.createObjectURL(new Blob([cur.svg],{type:'image/svg+xml'}));
+    $('fname').value=cur.name;
+    $('result').hidden=false;$('rmsg').textContent=cur.temp_file?('Auto-saved to '+cur.temp_file+(cur.temp_url?' (Home Assistant URL: '+cur.temp_url+')':'')):'';
+    $('msg').textContent='Done. Name it and choose what to do.';
+    $('result').scrollIntoView({behavior:'smooth'});
+  }catch(e){$('msg').textContent='Error: '+e}
+  finally{$('btn').disabled=false}
+}
+function download(name){
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([cur.svg],{type:'image/svg+xml'}));
+  a.download=name+'.svg';document.body.appendChild(a);a.click();a.remove();
+}
+async function act(kind){
+  if(!cur)return;
+  const name=cleanName($('fname').value);$('fname').value=name;
+  ['bSave','bDl','bBoth'].forEach(i=>$(i).disabled=true);
+  try{
+    let saved=null;
+    if(kind!=='dl'){
+      const r=await fetch('save',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:cur.id,name})});
+      if(!r.ok){$('rmsg').textContent='Save failed: '+await r.text();return}
+      saved=await r.json();
+    }
+    if(kind!=='save')download(saved?saved.file_name.replace(/\.svg$/i,''):name);
+    $('rmsg').textContent=kind==='dl'?'Downloaded. The auto-saved temp copy stays in the temp folder.'
+      :kind==='save'?('Saved to '+saved.saved_path):('Saved to '+saved.saved_path+' and downloaded.');
+  }catch(e){$('rmsg').textContent='Error: '+e}
+  finally{['bSave','bDl','bBoth'].forEach(i=>$(i).disabled=false)}
+}
+</script></body></html>
