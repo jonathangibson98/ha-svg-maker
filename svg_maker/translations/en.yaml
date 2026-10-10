@@ -35,3 +35,21 @@ configuration:
   max_upload_mb:
     name: Max upload size (MB)
     description: Reject uploads larger than this.
+  crop_editor:
+    name: Show crop editor
+    description: After you pick a photo, show a draggable, zoomable crop window (like the Facebook profile picture screen) so you can approve or adjust the crop before converting.
+  auto_crop:
+    name: Auto-crop suggestion
+    description: Automatically find the main subject and position the crop on it. You can still drag and zoom. With the editor off, the auto crop is applied without asking.
+  crop_shape:
+    name: Default crop shape
+    description: circle, rounded or square crop the result to that shape (great for icons). none keeps the whole photo. Changeable on the page.
+  crop_padding:
+    name: Crop padding (%)
+    description: Extra breathing room around the detected subject. Higher zooms out more.
+  output_size:
+    name: Crop output size (px)
+    description: The cropped photo is shrunk to this size before upload and tracing. 512 is good for icons and is fast on a Pi.
+  auto_enhance:
+    name: Auto-enhance before tracing
+    description: Boosts contrast, smooths texture noise and simplifies colors so photos trace into clean shapes with smaller files. Changeable on the page.
