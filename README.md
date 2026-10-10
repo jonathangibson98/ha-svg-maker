@@ -1,3 +1,5 @@
+![Visual Floorplan Card](social-preview.png)
+
 # Visual Floorplan Card
 
 A custom Home Assistant Lovelace card that turns a floor plan image into an interactive, living map of your home. Drop devices on the map, trace rooms and bind them to Home Assistant Areas, and watch your house glow with the real colors of your lights, the time of day, and the sun and moon shining through your windows.
