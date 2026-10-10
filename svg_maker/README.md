@@ -6,6 +6,8 @@ Convert your photos into clean, scalable **SVG** vector graphics, right from Hom
 Upload a photo from your phone or computer in the app's web page, pick color or black and white, set the detail level, and get an SVG you can use for logos, cutting machines (Cricut and similar), laser engraving, stickers, or design work.
 
 ## Features
+- Facebook-style crop window: auto-suggested crop, drag and pinch to adjust, circle, rounded or square
+- Auto-enhance for cleaner shapes and smaller files
 - Mobile-friendly web UI with live preview and one-tap download
 - Color or black and white tracing with adjustable detail
 - Name your file, then Save locally, Download, or Both

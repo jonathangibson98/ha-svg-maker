@@ -1,5 +1,5 @@
 name: "SVG Maker"
-version: "1.2.0"
+version: "1.3.0"
 slug: svg_maker
 description: "Turn photos into scalable SVG vector files right from Home Assistant"
 url: "https://github.com/"
@@ -40,6 +40,12 @@ options:
   path_style: spline
   max_image_dimension: 1600
   max_upload_mb: 25
+  crop_editor: true
+  auto_crop: true
+  crop_shape: circle
+  crop_padding: 15
+  output_size: 512
+  auto_enhance: true
 schema:
   log_level: list(debug|info|warning|error)
   output_path: str
@@ -53,3 +59,9 @@ schema:
   path_style: list(spline|polygon|none)
   max_image_dimension: int(400,4000)
   max_upload_mb: int(1,100)
+  crop_editor: bool
+  auto_crop: bool
+  crop_shape: list(circle|rounded|square|none)
+  crop_padding: int(0,60)
+  output_size: int(128,2048)
+  auto_enhance: bool

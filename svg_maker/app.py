@@ -1,7 +1,7 @@
 import os, re, io, json, time, uuid, logging, tempfile, shutil
 from collections import OrderedDict
 from flask import Flask, request, send_from_directory, jsonify
-from PIL import Image
+from PIL import Image, ImageOps, ImageFilter, ImageEnhance
 import vtracer
 
 OPTIONS_FILE = os.environ.get("OPTIONS_FILE", "/data/options.json")
@@ -16,6 +16,8 @@ DEFAULTS = {
     "filename_style": "original_timestamp", "on_name_conflict": "rename",
     "default_mode": "color", "default_detail": 5, "path_style": "spline",
     "max_image_dimension": 1600, "max_upload_mb": 25,
+    "crop_editor": True, "auto_crop": True, "crop_shape": "circle",
+    "crop_padding": 15, "output_size": 512, "auto_enhance": True,
 }
 BLOCKED = ("/proc", "/sys", "/dev", "/etc", "/bin", "/sbin", "/usr", "/lib",
            "/lib64", "/run", "/var", "/root", "/boot", "/static")
@@ -116,6 +118,46 @@ def temp_stem(base):
         return str(ts)
     return f"{base}_{ts}"
 
+def enhance_image(img, mode, detail):
+    """Clean up a photo so it traces into big flat shapes instead of noise."""
+    img = ImageOps.autocontrast(img, cutoff=1)
+    img = img.filter(ImageFilter.MedianFilter(5 if max(img.size) <= 800 else 3))
+    if mode == "bw":
+        return ImageOps.autocontrast(ImageOps.grayscale(img)).convert("RGB")
+    img = ImageEnhance.Color(img).enhance(1.25)
+    return img.quantize(colors=2 + detail, method=Image.Quantize.MEDIANCUT,
+                        dither=Image.Dither.NONE).convert("RGB")
+
+def apply_shape(svg, shape):
+    """Make the SVG square and clip it to a circle or rounded square."""
+    if shape not in ("circle", "rounded", "square"):
+        return svg
+    m = re.search(r"<svg[^>]*>", svg)
+    if not m:
+        return svg
+    tag = m.group(0)
+    w = re.search(r'width="(\d+)"', tag)
+    h = re.search(r'height="(\d+)"', tag)
+    if not (w and h):
+        return svg
+    w, h = int(w.group(1)), int(h.group(1))
+    side = min(w, h)
+    x0, y0 = (w - side) / 2, (h - side) / 2
+    new = re.sub(r'\s(width|height|viewBox)="[^"]*"', "", tag)
+    new = new[:-1] + f' width="{side}" height="{side}" viewBox="{x0:g} {y0:g} {side} {side}">'
+    inner = ""
+    close = ""
+    if shape in ("circle", "rounded"):
+        if shape == "circle":
+            clip = f'<circle cx="{w/2:g}" cy="{h/2:g}" r="{side/2:g}"/>'
+        else:
+            clip = f'<rect x="{x0:g}" y="{y0:g}" width="{side}" height="{side}" rx="{side*0.18:g}"/>'
+        inner = f'<defs><clipPath id="svgmaker-clip">{clip}</clipPath></defs><g clip-path="url(#svgmaker-clip)">'
+        close = "</g>"
+    out = svg.replace(tag, new + inner, 1)
+    i = out.rfind("</svg>")
+    return out[:i] + close + out[i:] if i >= 0 else out
+
 CACHE = OrderedDict()  # id -> {svg, temp, base}
 
 app = Flask(__name__, static_folder=STATIC_DIR)
@@ -136,6 +178,9 @@ def settings():
         "default_detail": int(opt["default_detail"]),
         "output_path": OUT, "temp_path": TEMP,
         "max_upload_mb": int(opt["max_upload_mb"]),
+        "crop_editor": bool(opt["crop_editor"]), "auto_crop": bool(opt["auto_crop"]),
+        "crop_shape": opt["crop_shape"], "crop_padding": int(opt["crop_padding"]),
+        "output_size": int(opt["output_size"]), "auto_enhance": bool(opt["auto_enhance"]),
     })
 
 @app.route("/convert", methods=["POST"])
@@ -148,7 +193,9 @@ def convert():
         detail = max(1, min(10, int(request.form.get("detail", opt["default_detail"]))))
     except ValueError:
         detail = int(opt["default_detail"])
-    log.info("Converting %s (mode=%s, detail=%s)", f.filename, mode, detail)
+    shape = request.form.get("shape", opt["crop_shape"])
+    enhance = request.form.get("enhance", "1" if opt["auto_enhance"] else "0") == "1"
+    log.info("Converting %s (mode=%s, detail=%s, shape=%s, enhance=%s)", f.filename, mode, detail, shape, enhance)
     t0 = time.time()
     try:
         raw = f.read()
@@ -159,17 +206,22 @@ def convert():
             log.debug("Original size %sx%s", *img.size)
             m = int(opt["max_image_dimension"])
             img.thumbnail((m, m))
+            if enhance:
+                img = enhance_image(img, mode, detail)
+                kw = dict(filter_speckle=max(3, round(max(img.size) / 90) + 6 - detail),
+                          color_precision=8, layer_difference=8, corner_threshold=60,
+                          length_threshold=8, path_precision=1)
+            else:
+                kw = dict(filter_speckle=max(1, 12 - detail),
+                          color_precision=min(8, 3 + detail // 2),
+                          layer_difference=max(8, 40 - detail * 3))
             img.save(src)
             vtracer.convert_image_to_svg_py(
                 src, dst,
                 colormode="binary" if mode == "bw" else "color",
-                filter_speckle=max(1, 12 - detail),
-                color_precision=min(8, 3 + detail // 2),
-                layer_difference=max(8, 40 - detail * 3),
-                mode=opt["path_style"],
-            )
+                mode=opt["path_style"], **kw)
             with open(dst) as o:
-                svg = o.read()
+                svg = apply_shape(o.read(), shape)
     except Exception as e:
         log.exception("Conversion failed")
         return f"Could not convert that image: {e}", 500
