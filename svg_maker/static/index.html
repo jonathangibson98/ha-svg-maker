@@ -2,8 +2,8 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>SVG Maker</title>
 <style>
-:root{--bg:#111;--card:#1c1c1e;--txt:#eee;--mut:#9a9a9f;--acc:#03a9f4}
-@media(prefers-color-scheme:light){:root{--bg:#f2f2f7;--card:#fff;--txt:#111;--mut:#666}}
+:root{--bg:#111;--card:#1c1c1e;--txt:#eee;--mut:#9a9a9f;--acc:#03a9f4;--chip:#2c2c2e}
+@media(prefers-color-scheme:light){:root{--bg:#f2f2f7;--card:#fff;--txt:#111;--mut:#666;--chip:#e5e5ea}}
 *{box-sizing:border-box}
 body{font-family:-apple-system,Roboto,sans-serif;background:var(--bg);color:var(--txt);margin:0;padding:16px}
 .wrap{max-width:720px;margin:auto}
@@ -12,34 +12,57 @@ body{font-family:-apple-system,Roboto,sans-serif;background:var(--bg);color:var(
 .hero p{color:var(--mut);margin:6px 0 0}
 .card{background:var(--card);border-radius:14px;padding:16px;margin-top:14px}
 .steps{display:flex;gap:8px;flex-wrap:wrap;color:var(--mut);font-size:14px}
-.steps span{flex:1;min-width:150px}
+.steps span{flex:1;min-width:130px}
 .steps b{color:var(--acc)}
 label{display:block;font-size:14px;color:var(--mut);margin:12px 0 4px}
+label small{font-weight:normal}
 input[type=file],input[type=text],select{width:100%;font-size:16px;padding:10px;border-radius:10px;border:1px solid #444;background:transparent;color:var(--txt)}
 input[type=range]{width:100%}
-button{font-size:16px;padding:13px;border:0;border-radius:10px;background:var(--acc);color:#fff;font-weight:600}
+button{font-size:16px;padding:12px;border:0;border-radius:10px;background:var(--acc);color:#fff;font-weight:600}
 button.main{width:100%;margin-top:14px}
 button.alt{background:#555}
 button:disabled{opacity:.5}
-.row{display:flex;gap:8px;margin-top:12px}
+.row{display:flex;gap:8px;margin-top:10px}
 .row button{flex:1}
+.seg button{background:var(--chip);color:var(--txt);font-weight:500;padding:10px 4px;font-size:14px}
+.seg button.on{background:var(--acc);color:#fff;font-weight:600}
+#stagewrap{max-width:520px;margin:6px auto 0}
+#stage{width:100%;display:block;border-radius:12px;touch-action:none;cursor:grab;background:#000}
+.chk{display:flex;align-items:center;gap:8px;margin-top:12px;font-size:15px}
+.chk input{width:20px;height:20px}
 #msg,#rmsg{margin-top:10px;font-size:14px;color:var(--mut);word-break:break-all}
-#prevbox{background:#fff;border-radius:10px;padding:10px;text-align:center}
+#prevbox{background:repeating-conic-gradient(#ddd 0 25%,#fff 0 50%) 0 0/16px 16px;border-radius:10px;padding:10px;text-align:center}
 #prevbox img{max-width:100%;max-height:50vh}
 .tip{font-size:13px;color:var(--mut);line-height:1.5}
 </style></head><body><div class="wrap">
 <div class="hero"><h1>SVG Maker</h1><p>Turn photos into crisp, scalable vector graphics.</p></div>
 
-<div class="card"><div class="steps"><span><b>1.</b> Pick a photo</span><span><b>2.</b> Choose color and detail</span><span><b>3.</b> Name it, then save or download</span></div></div>
+<div class="card"><div class="steps"><span><b>1.</b> Pick a photo</span><span><b>2.</b> Adjust the crop</span><span><b>3.</b> Convert</span><span><b>4.</b> Name, save or download</span></div></div>
 
 <div class="card">
   <label>Photo</label>
   <input type="file" id="file" accept="image/*">
+
+  <div id="editor" hidden>
+    <label>Crop <small>&mdash; drag to move, pinch or slide to zoom</small></label>
+    <div id="stagewrap"><canvas id="stage"></canvas></div>
+    <label>Zoom</label>
+    <input type="range" id="zoom" min="0" max="100" value="0">
+    <div class="row seg" id="shapes">
+      <button data-s="circle">Circle</button><button data-s="rounded">Rounded</button>
+      <button data-s="square">Square</button><button data-s="full">Full</button>
+    </div>
+    <div class="row">
+      <button class="alt" id="bAuto">Auto-fit</button><button class="alt" id="bReset">Reset</button>
+    </div>
+  </div>
+
   <label>Color mode</label>
   <select id="mode"><option value="color">Color</option><option value="bw">Black &amp; white</option></select>
   <label>Detail: <b id="dv">5</b> <span style="float:right">simple &larr; &rarr; detailed</span></label>
   <input type="range" id="detail" min="1" max="10" value="5">
-  <button class="main" id="btn" onclick="go()">Convert to SVG</button>
+  <div class="chk"><input type="checkbox" id="enh"><span>Auto-enhance (cleaner shapes, smaller file)</span></div>
+  <button class="main" id="btn">Convert to SVG</button>
   <div id="msg"></div>
 </div>
 
@@ -48,54 +71,142 @@ button:disabled{opacity:.5}
   <label>File name</label>
   <input type="text" id="fname" placeholder="my_icon" autocapitalize="off" autocorrect="off">
   <div class="row">
-    <button id="bSave" onclick="act('save')">Save locally</button>
-    <button id="bDl" class="alt" onclick="act('dl')">Download</button>
-    <button id="bBoth" onclick="act('both')">Both</button>
+    <button id="bSave">Save locally</button>
+    <button id="bDl" class="alt">Download</button>
+    <button id="bBoth">Both</button>
   </div>
   <div id="rmsg"></div>
 </div>
 
 <div class="card tip">
-  <b>Best results:</b> logos, drawings, cartoons, signatures and photos with clear shapes and solid colors.
-  Busy, realistic photos turn into a stylized, blobby look. That is normal for vector tracing.
+  <b>Best results:</b> logos, drawings, pets, portraits and photos with a clear subject. Busy scenes turn stylized and blobby.
+  Auto-crop looks for whatever stands out most. It isn't face detection, so nudge the crop if it misses.
   <div id="saveinfo" style="margin-top:8px"></div>
 </div>
 </div>
+<script src="static/crop.js"></script>
 <script>
 const $=id=>document.getElementById(id);
-let cur=null;
+const clamp=(v,a,b)=>Math.min(b,Math.max(a,v));
+let cfg={crop_editor:true,auto_crop:true,crop_shape:'circle',crop_padding:15,output_size:512,auto_enhance:true};
+let img=null,iw=0,ih=0,fileBase='image',shape='circle',cur=null;
+let V=320,D=270,L=25,s=1,tx=0,ty=0,sMin=1,dpr=window.devicePixelRatio||1;
+const cv=$('stage'),ctx=cv.getContext('2d'),ptrs=new Map();let pinch=null;
+
 $('detail').oninput=e=>$('dv').textContent=e.target.value;
-fetch('settings').then(r=>r.json()).then(s=>{
-  $('mode').value=s.default_mode;$('detail').value=s.default_detail;$('dv').textContent=s.default_detail;
-  $('saveinfo').innerHTML='Save locally puts files in <b>'+s.output_path+'</b>. Anything you do not save is auto-kept in <b>'+s.temp_path+'</b>.';
+fetch('settings').then(r=>r.json()).then(c=>{
+  cfg=c;shape=c.crop_shape==='none'?'full':c.crop_shape;
+  $('mode').value=c.default_mode;$('detail').value=c.default_detail;$('dv').textContent=c.default_detail;
+  $('enh').checked=c.auto_enhance;markShape();
+  $('saveinfo').innerHTML='Save locally puts files in <b>'+c.output_path+'</b>. Anything you do not save is auto-kept in <b>'+c.temp_path+'</b>.';
 }).catch(()=>{});
-function cleanName(n){n=n.trim().replace(/\.svg$/i,'').replace(/[^A-Za-z0-9._-]+/g,'_').replace(/^[._]+|[._]+$/g,'');return n||(cur&&cur.name)||'image'}
-async function go(){
-  const f=$('file').files[0];
-  if(!f){$('msg').textContent='Pick a photo first.';return}
+
+/* ---------- crop editor ---------- */
+function markShape(){document.querySelectorAll('#shapes button').forEach(b=>b.classList.toggle('on',b.dataset.s===shape))}
+document.querySelectorAll('#shapes button').forEach(b=>b.onclick=()=>{shape=b.dataset.s;markShape();$('zoom').disabled=shape==='full';draw()});
+function loadImage(f){return new Promise((res,rej)=>{const u=URL.createObjectURL(f),im=new Image();im.onload=()=>res(im);im.onerror=()=>rej();im.src=u})}
+function initGeometry(size){
+  V=size;D=V*0.84;L=(V-D)/2;sMin=D/Math.min(iw,ih);
+  cv.width=Math.round(V*dpr);cv.height=Math.round(V*dpr);
+}
+function clampPos(){tx=Math.min(L,Math.max(L+D-iw*s,tx));ty=Math.min(L,Math.max(L+D-ih*s,ty))}
+function syncSlider(){$('zoom').value=clamp((s/sMin-1)/4*100,0,100)}
+function zoomAt(ns,ax,ay){ns=clamp(ns,sMin,sMin*5);const px=(ax-tx)/s,py=(ay-ty)/s;s=ns;tx=ax-px*s;ty=ay-py*s;clampPos();syncSlider();draw()}
+function resetCrop(){s=sMin;tx=V/2-iw*s/2;ty=V/2-ih*s/2;clampPos();syncSlider();draw()}
+function suggest(){
+  const k=96/Math.max(iw,ih),w=Math.max(8,Math.round(iw*k)),h=Math.max(8,Math.round(ih*k));
+  const c=document.createElement('canvas');c.width=w;c.height=h;
+  const x=c.getContext('2d',{willReadFrequently:true});x.drawImage(img,0,0,w,h);
+  return CropSuggest.suggest(x.getImageData(0,0,w,h).data,w,h,cfg.crop_padding);
+}
+function autoFit(){
+  if(!img)return;
+  const g=suggest(),size=g.fsize*Math.min(iw,ih);
+  s=clamp(D/size,sMin,sMin*5);tx=V/2-g.fx*iw*s;ty=V/2-g.fy*ih*s;clampPos();syncSlider();draw();
+}
+function windowPath(){
+  const x=L,y=L;ctx.beginPath();
+  if(shape==='circle'){ctx.moveTo(V/2+D/2,V/2);ctx.arc(V/2,V/2,D/2,0,Math.PI*2)}
+  else if(shape==='rounded'){const r=D*0.18;ctx.moveTo(x+r,y);ctx.arcTo(x+D,y,x+D,y+D,r);ctx.arcTo(x+D,y+D,x,y+D,r);ctx.arcTo(x,y+D,x,y,r);ctx.arcTo(x,y,x+D,y,r);ctx.closePath()}
+  else{ctx.rect(x,y,D,D)}
+}
+function draw(){
+  if(!img)return;
+  ctx.setTransform(dpr,0,0,dpr,0,0);ctx.fillStyle='#000';ctx.fillRect(0,0,V,V);
+  ctx.imageSmoothingQuality='high';
+  if(shape==='full'){const f=Math.min(V/iw,V/ih);ctx.drawImage(img,(V-iw*f)/2,(V-ih*f)/2,iw*f,ih*f);return}
+  ctx.drawImage(img,tx,ty,iw*s,ih*s);
+  ctx.save();ctx.fillStyle='rgba(0,0,0,.6)';ctx.beginPath();ctx.rect(0,0,V,V);
+  const x=L,y=L;
+  if(shape==='circle'){ctx.moveTo(V/2+D/2,V/2);ctx.arc(V/2,V/2,D/2,0,Math.PI*2)}
+  else if(shape==='rounded'){const r=D*0.18;ctx.moveTo(x+r,y);ctx.arcTo(x+D,y,x+D,y+D,r);ctx.arcTo(x+D,y+D,x,y+D,r);ctx.arcTo(x,y+D,x,y,r);ctx.arcTo(x,y,x+D,y,r);ctx.closePath()}
+  else{ctx.rect(x,y,D,D)}
+  ctx.fill('evenodd');ctx.restore();
+  ctx.strokeStyle='rgba(255,255,255,.9)';ctx.lineWidth=2;windowPath();ctx.stroke();
+}
+function pos(e){const r=cv.getBoundingClientRect();return{x:(e.clientX-r.left)*V/r.width,y:(e.clientY-r.top)*V/r.height}}
+const dist=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
+cv.addEventListener('pointerdown',e=>{
+  if(shape==='full'||!img)return;cv.setPointerCapture(e.pointerId);ptrs.set(e.pointerId,pos(e));
+  if(ptrs.size===2){const p=[...ptrs.values()];pinch={d0:dist(p[0],p[1]),s0:s,tx0:tx,ty0:ty,mid:{x:(p[0].x+p[1].x)/2,y:(p[0].y+p[1].y)/2}}}
+});
+cv.addEventListener('pointermove',e=>{
+  if(!ptrs.has(e.pointerId))return;const prev=ptrs.get(e.pointerId),c=pos(e);ptrs.set(e.pointerId,c);
+  if(ptrs.size===1){tx+=c.x-prev.x;ty+=c.y-prev.y;clampPos();draw()}
+  else if(pinch){
+    const p=[...ptrs.values()],m={x:(p[0].x+p[1].x)/2,y:(p[0].y+p[1].y)/2};
+    const ns=clamp(pinch.s0*dist(p[0],p[1])/pinch.d0,sMin,sMin*5);
+    const ix=(pinch.mid.x-pinch.tx0)/pinch.s0,iy=(pinch.mid.y-pinch.ty0)/pinch.s0;
+    s=ns;tx=m.x-ix*s;ty=m.y-iy*s;clampPos();syncSlider();draw();
+  }
+});
+['pointerup','pointercancel','pointerleave'].forEach(t=>cv.addEventListener(t,e=>{ptrs.delete(e.pointerId);pinch=null}));
+cv.addEventListener('wheel',e=>{if(shape==='full')return;e.preventDefault();const p=pos(e);zoomAt(s*Math.exp(-e.deltaY*0.0015),p.x,p.y)},{passive:false});
+$('zoom').oninput=e=>zoomAt(sMin*(1+4*e.target.value/100),V/2,V/2);
+$('bAuto').onclick=autoFit;$('bReset').onclick=resetCrop;
+
+$('file').onchange=async e=>{
+  const f=e.target.files[0];if(!f)return;
+  fileBase=f.name.replace(/\.[^.]+$/,'')||'image';$('result').hidden=true;
+  try{img=await loadImage(f)}catch(_){img=null;$('msg').textContent='Your browser could not open that image. Try a JPG or PNG.';return}
+  iw=img.naturalWidth;ih=img.naturalHeight;$('msg').textContent='';
+  $('editor').hidden=!cfg.crop_editor;
+  initGeometry(cfg.crop_editor?Math.min($('stagewrap').clientWidth||320,520):320);
+  $('zoom').disabled=shape==='full';
+  resetCrop();if(cfg.auto_crop)autoFit();
+};
+
+/* ---------- convert ---------- */
+function exportBlob(){
+  const out=cfg.output_size,c=document.createElement('canvas'),x=c.getContext('2d');x.imageSmoothingQuality='high';
+  if(shape==='full'){const k=Math.min(1,out/Math.max(iw,ih));c.width=Math.round(iw*k);c.height=Math.round(ih*k);x.drawImage(img,0,0,c.width,c.height)}
+  else{const size=D/s,sx=(L-tx)/s,sy=(L-ty)/s;c.width=c.height=Math.max(32,Math.min(out,Math.round(size)));x.drawImage(img,sx,sy,size,size,0,0,c.width,c.height)}
+  return new Promise(r=>c.toBlob(r,'image/jpeg',0.95));
+}
+$('btn').onclick=async()=>{
+  if(!img){$('msg').textContent='Pick a photo first.';return}
   $('btn').disabled=true;$('msg').textContent='Working... bigger photos take longer on a Pi.';$('result').hidden=true;
-  const fd=new FormData();
-  fd.append('photo',f);fd.append('mode',$('mode').value);fd.append('detail',$('detail').value);
   try{
+    const blob=await exportBlob(),fd=new FormData();
+    fd.append('photo',blob,fileBase+'.jpg');fd.append('mode',$('mode').value);fd.append('detail',$('detail').value);
+    fd.append('shape',shape==='full'?'none':shape);fd.append('enhance',$('enh').checked?'1':'0');
     const r=await fetch('convert',{method:'POST',body:fd});
     if(!r.ok){$('msg').textContent='Failed: '+await r.text();return}
     cur=await r.json();
     $('prev').src=URL.createObjectURL(new Blob([cur.svg],{type:'image/svg+xml'}));
-    $('fname').value=cur.name;
-    $('result').hidden=false;$('rmsg').textContent=cur.temp_file?('Auto-saved to '+cur.temp_file+(cur.temp_url?' (Home Assistant URL: '+cur.temp_url+')':'')):'';
-    $('msg').textContent='Done. Name it and choose what to do.';
+    $('fname').value=cur.name;$('result').hidden=false;
+    $('rmsg').textContent=cur.temp_file?('Auto-saved to '+cur.temp_file+(cur.temp_url?' (Home Assistant URL: '+cur.temp_url+')':'')):'';
+    $('msg').textContent='Done ('+Math.round(cur.svg.length/1024)+' KB). Name it and choose what to do.';
     $('result').scrollIntoView({behavior:'smooth'});
   }catch(e){$('msg').textContent='Error: '+e}
   finally{$('btn').disabled=false}
-}
-function download(name){
-  const a=document.createElement('a');
-  a.href=URL.createObjectURL(new Blob([cur.svg],{type:'image/svg+xml'}));
-  a.download=name+'.svg';document.body.appendChild(a);a.click();a.remove();
-}
+};
+
+/* ---------- save / download ---------- */
+function cleanName(n){n=n.trim().replace(/\.svg$/i,'').replace(/[^A-Za-z0-9._-]+/g,'_').replace(/^[._]+|[._]+$/g,'');return n||(cur&&cur.name)||'image'}
+function download(name){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([cur.svg],{type:'image/svg+xml'}));a.download=name+'.svg';document.body.appendChild(a);a.click();a.remove()}
 async function act(kind){
-  if(!cur)return;
-  const name=cleanName($('fname').value);$('fname').value=name;
+  if(!cur)return;const name=cleanName($('fname').value);$('fname').value=name;
   ['bSave','bDl','bBoth'].forEach(i=>$(i).disabled=true);
   try{
     let saved=null;
@@ -105,9 +216,9 @@ async function act(kind){
       saved=await r.json();
     }
     if(kind!=='save')download(saved?saved.file_name.replace(/\.svg$/i,''):name);
-    $('rmsg').textContent=kind==='dl'?'Downloaded. The auto-saved temp copy stays in the temp folder.'
-      :kind==='save'?('Saved to '+saved.saved_path):('Saved to '+saved.saved_path+' and downloaded.');
+    $('rmsg').textContent=kind==='dl'?'Downloaded. The auto-saved temp copy stays in the temp folder.':kind==='save'?('Saved to '+saved.saved_path):('Saved to '+saved.saved_path+' and downloaded.');
   }catch(e){$('rmsg').textContent='Error: '+e}
   finally{['bSave','bDl','bBoth'].forEach(i=>$(i).disabled=false)}
 }
+$('bSave').onclick=()=>act('save');$('bDl').onclick=()=>act('dl');$('bBoth').onclick=()=>act('both');
 </script></body></html>
