@@ -1,3 +1,5 @@
-name: Jon's Home Assistant Apps
-url: https://github.com/jonathangibson98/ha-svg-maker
-maintainer: Jon
+{
+  "name": "Visual Floorplan Card",
+  "render_readme": true,
+  "filename": "visual-floorplan-card.js"
+}
