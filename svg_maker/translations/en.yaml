@@ -1,0 +1,37 @@
+configuration:
+  log_level:
+    name: Log level
+    description: How chatty the app log is. Use debug when troubleshooting, warning or error to keep it quiet.
+  output_path:
+    name: Save folder
+    description: Where files go when you press Save locally or Both on the page. Any folder this app can see (/homeassistant, /share, /media, /backup, /ssl, /config, /addon_configs). Created for you if missing. Default /share/svg_maker.
+  temp_path:
+    name: Temp folder (auto-saves)
+    description: Every conversion is auto-saved here until you save it yourself. Default /homeassistant/www/svg_maker/temp_icons, which Home Assistant serves at /local/svg_maker/temp_icons/.
+  auto_delete_temp:
+    name: Auto-delete temp files
+    description: Turn on to automatically delete old files from the temp folder. Never touches your save folder.
+  auto_delete_after_days:
+    name: Delete temp files older than (days)
+    description: Only used when Auto-delete temp files is on.
+  filename_style:
+    name: Temp file naming
+    description: How auto-saved temp files are named. original = photo name, timestamp = unix time, original_timestamp = both. You choose the name for saved files on the page.
+  on_name_conflict:
+    name: If the file name already exists
+    description: rename adds -1, -2 so nothing gets overwritten. overwrite replaces the old file.
+  default_mode:
+    name: Default color mode
+    description: Color keeps colors. bw makes a black and white trace. Changeable per upload on the page.
+  default_detail:
+    name: Default detail (1-10)
+    description: 1 is simple and smooth, 10 is highly detailed but bigger files. Changeable per upload.
+  path_style:
+    name: Curve style
+    description: spline = smooth curves (best for most). polygon = straight edges. none = raw pixel-ish paths.
+  max_image_dimension:
+    name: Max image size (px)
+    description: Photos are shrunk so the longest side fits this before tracing. Lower is faster on a Pi.
+  max_upload_mb:
+    name: Max upload size (MB)
+    description: Reject uploads larger than this.
