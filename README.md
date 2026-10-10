@@ -6,6 +6,8 @@ A custom Home Assistant Lovelace card that turns a floor plan image into an inte
 
 Card type: `custom:visual-floorplan-card`
 
+![Screenshot](floorplan.png)
+
 ---
 
 ## Features
