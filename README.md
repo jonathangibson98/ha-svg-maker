@@ -64,7 +64,7 @@ Card type: `custom:visual-floorplan-card`
 ---
 
 ## Installation
-
+[![Open your Home Assistant instance and open Visual Floorplan Card inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=jonathangibson98&repository=visual-floorplan-card&category=plugin)
 ### HACS (custom repository)
 1. In Home Assistant, open **HACS**
 2. Open the three-dot menu and choose **Custom repositories**
